@@ -1,0 +1,13 @@
+{
+    "name": "plotly-scatter",
+    "description": "Chart visualization template",
+    "icon": "line-chart",
+    "preview": "Plotly-logo-01-square.png",
+    "type": "visualization",
+    "version": "0.1.0",
+    "author": "Luke Wileczek, plot.ly people",
+    "keywords": "qlik-sense, visualization, line-chart, extension",
+    "dependencies": {
+        "qlik-sense": ">=3.0.x"
+    }
+}
