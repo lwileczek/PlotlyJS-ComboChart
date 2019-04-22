@@ -5,19 +5,20 @@ define( [], function () {
 	// Copying properties from: https://plot.ly/javascript/reference/
 	
 	/* ---------------------------------------------------------------------------
-	 * Reusing Some standadrd properties 
-     * --------------------------------------------------------------------------*/
+	 * Reusing Some standard properties  
+	 * --------------------------------------------------------------------------*/
 	
 	var appearanceSection = {
 	    uses: "settings",
 	};
-	
 	var measures = {
 		uses: "measures",
 		min: 1,
-		max: 1
+		max: 2
 	};
-	
+	var sorting =  {
+		uses: "sorting"
+	};
 	var dimensions = {
 		uses: "dimensions",
 		min: 1,
@@ -184,7 +185,6 @@ define( [], function () {
 	var lineWidth = {
 		type: "number",
 		label: "Line Width (px)",
-		//ref: "props.line.lineWidth",
 		ref: "lineWidth",
 		defaultValue: "2",
 		min: 0.5, 
@@ -226,20 +226,41 @@ define( [], function () {
 		defaultValue: "'rgb(0, 0, 136)'",
 		expression: "optional"
 	};
+	var correspondingDimVal = {
+		type: "string",
+		label: "Corresponding Dimension Value",
+		ref: "dimVal",
+		defaultValue: ""
+	};
+	var firstOrSecondMeasure = {
+		type: "boolean",
+		component: "switch",
+		label: "Corresponding Measure",
+		ref: "measureVal",
+		defaultValue: true,
+		options: [{
+			value: true,
+			label: "First"
+		}, {
+			value: false,
+			label: "Second"
+		}],
+	};
+	
 	/* ----------------------------------------------------------------------------
 	 * Array Line Properties
 	 *----------------------------------------------------------------------------*/
-	 let myArrayCounter = 0;
+	 var myArrayCounter = 0;
 	 var myArrayProps = {
 	                label: "Array Properties",
-					items: {
-						MyText: {
-							label:"Add a one Item for each dimension you want to customize the properties for." + 
-							"The properties will be added sequentially to how the dimension is being sorted.",
-							component: "text"
-						},
-						MyList: {
-							type: "array",
+			items: {
+			MyText: {
+				label:"Add a one Item for each dimension you want to customize the properties for." + 
+				"The properties will be added sequentially to how the dimension is being sorted.",
+				component: "text"
+			},
+			MyList: {
+			    type: "array",
                             ref: "listItems",
                             label: "List Items",
                             itemTitleRef: "label",
@@ -247,21 +268,35 @@ define( [], function () {
                             allowRemove: true,
                             addTranslation: "Add Item",
                             items: {
-								MyText: {
-									label: "Name this Dimension",
-									ref: "label",
-									component: "string"
-								},
-								header0_item0: lineOrBar,
-								header0_item1: lineWidth,
-								header0_item2: lineDashed,
-								header0_item3: lineColor,
-								header0_item4: markerWidth,
-								header0_item5: markerColor
-							}
-						}
-					}
-				};
+				MyText: {
+					label: "Name this Dimension",
+					ref: "label",
+					component: "string"
+				},
+				MyText3: {
+					label:"Will be used in the legend",
+					component: "text"
+				},
+				header0_item0: correspondingDimVal,
+				MyText1: {
+					label:"Will be used to find the proper line/bar to apply properties if there are multiple dimensions",
+					component: "text"
+				},
+				header0_item1: firstOrSecondMeasure,
+				MyText0: {
+					label:"If only one measure leave switch on first.",
+					component: "text"
+				},
+				header0_item2: lineOrBar,
+				header0_item3: lineWidth,
+				header0_item4: lineDashed,
+				header0_item5: lineColor,
+				header0_item6: markerWidth,
+				header0_item7: markerColor
+			}
+		}
+	}
+};
 
 	return {
 		type: "items",
@@ -269,6 +304,7 @@ define( [], function () {
 		items: {
 			dimensions: dimensions,
 			measures: measures,
+			sorting: sorting,
 			appearance: appearanceSection,
 			customSection: titleAndAxisProps,
 			//customSection1: lineProps,
