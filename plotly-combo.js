@@ -1,6 +1,6 @@
 define([
         "qlik",
-        '//cdn.plot.ly/plotly-latest.min.js',
+		'./plotly-latest.min',
         './properties'
     ],
     function(qlik, Plotly, props) {
@@ -13,28 +13,20 @@ define([
 
         function createTrace(dataMatrix, traceName = '', measureColumn = 1, lineColor = '', 
 		lineOrBar=true, lineWidth=2, dashedLine=false, markerWidth=2, markerColor='') {
-			if (+dataMatrix[0][0].qText + 1) {
+			if (isNaN(dataMatrix[0][0].qText)) {  // check if x-axis is numeric
                 var xVals = dataMatrix.map(function(row) {
-                    return row[0].qNum;
+                    return row[0].qText;
                 });
             } else {
                 var xVals = dataMatrix.map(function(row) {
-                    return row[0].qText;
+                    return row[0].qNum;
                 });
             }
             var yVals = dataMatrix.map(function(row) {
                 return row[measureColumn].qNum;
             });
-            if (lineOrBar) {
-                var chartType = 'scatter';
-            } else {
-                var chartType = 'bar'; 
-            }
-            if (dashedLine) {
-                var myDash = 'dot';
-            } else {
-                var myDash = 'solid';
-            }
+			var chartType = lineOrBar ? 'scatter' : 'bar';
+			var myDash = dashedLine ? 'dot' : 'solid';
             var trace = {
                 type: chartType,
                 mode: 'lines+markers',
@@ -59,91 +51,102 @@ define([
                     qDimensions: [],
                     qMeasures: [],
                     qInitialDataFetch: [{
-                        qWidth: 3, // 2 dimensions and 1 measure
-                        qHeight: 3333 // 3333 * 3 = 9999. You may only pull 10,000 with initial fetch
+                        qWidth: 4,     // 2 dimensions and 2 measure
+                        qHeight: 2500  // 2500 * 4 = 10,000. You may only pull 10,000 with initial fetch
                     }],
                     listItems: []
                 }
             },
             definition: props,
-
             paint: function($element, layout) {
-                let inputMatrix = layout.qHyperCube.qDataPages[0].qMatrix;
-                let myProps = layout.props;
-                let chartID = 'canvas' + Math.floor(Math.random() * Math.floor(10000));
+                var inputMatrix = layout.qHyperCube.qDataPages[0].qMatrix;
+                var myProps = layout.props;
+                var chartID = 'canvas' + layout.qInfo.qId;  // id so you can have multiple on a page
                 var canvasDiv = '<div id="' + chartID + '"></div>';
-				let customProperties = {};
-                $element.empty();
+                $element.empty();  // remove old chart
                 $element.append(canvasDiv); // need to append it before DOM can find it.
                 var canvas = document.getElementById(chartID);
-                let data = [];
-				let customDimension = [];
-				let currentTrace;
-                if (layout.listItems.length > 0) {
-                    // If true then custom properties have been set
-					customDimension = layout.listItems.map(function(x){return x['label'];});
-                    layout.listItems.forEach(function(propSet){
-						let filteredData = inputMatrix.filter(function(row) {
-									return row[1].qText == propSet['label'];
-								})
-						if(filteredData.length > 0){
-							currentTrace = createTrace(
-									filteredData,  // data matrix
-									propSet['label'],     // trace name
-									layout.qHyperCube.qDimensionInfo.length,  // column of data matrix to use
-									propSet['lineColor'],  
-									propSet['lineOrBar'],
-									propSet['lineWidth'],
-									propSet['dashed'],
-									propSet['markerWidth'],
-									propSet['markerColor']
-								);
-							data.push(currentTrace)
+                var data = [];
+				var customDimension = [ ];
+				for (let i=0; i < layout.qHyperCube.qMeasureInfo.length; i++){
+					customDimension.push([ ]);
+				}
+				var currentTrace;
+				// If there are two dimension group[filter] on the second dimension, else just use the first
+				var dimGroup = layout.qHyperCube.qDimensionInfo.length - 1; 
+				var firstMeasureColumn = layout.qHyperCube.qDimensionInfo.length;
+				// If the user has created custom properties
+				if (layout.listItems.length) {
+					/*
+					 * %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+					 * TODO:
+					 * Turn into for loop to accept arbitrary number of measures
+					 */
+					customDimension[0] = layout.listItems.map(function(x){
+					    if (x['measureVal']) {
+							return x['dimVal'];  // name to look for.
 						}
 					});
-                }
-                if (layout.qHyperCube.qDimensionInfo.length === 2) {
-                    /*
-                     * Assuming the first dimension will go along the x-axis, the second dimension (index 1),
-                     * will serve will be how we split the data up and re-compute values for.  
-                     */
-					
-                    let dim2Vals = inputMatrix.map(function(row) {
-                        return row[1].qText;
-                    }).filter(onlyUnique);
-					
-                    dim2Vals.forEach(function(dimValue) {
-                        let filteredData = inputMatrix.filter(function(row) {
-                            return row[1].qText == dimValue;
-                        });
-						if (customDimension.includes(dimValue)) {
-							// Pass
-						} else {
-                            currentTrace = createTrace(filteredData, dimValue, 2);
-							data.push(currentTrace);
+					customDimension[1] = layout.listItems.map(function(x){
+					    if (!x['measureVal']) {
+							return x['dimVal'];  // name to look for.
 						}
-                    });
-                } else {
-					//console.log(layout.listItems);
-					if(layout.listItems.length > 0){
-						console.log(1);
-						var myTrace = createTrace(
-									inputMatrix,  // data matrix
-									layout.listItems[0]['label'],     // trace name
-									1,  // column of data matrix to use
-									layout.listItems[0]['lineColor'],  
-									layout.listItems[0]['lineOrBar'],
-									layout.listItems[0]['lineWidth'],
-									layout.listItems[0]['dashed'],
-									layout.listItems[0]['markerWidth'],
-									layout.listItems[0]['markerColor']
-								);
-					} else {
-						console.log("2");
-						var myTrace = createTrace(inputMatrix, '', 1);
-					}
-				    data.push( myTrace );
+					});					
+					layout.listItems.forEach(function(propSet) {
+						// filtered data are the rows that correspond to the current trace.
+						let filteredData = dimGroup ? inputMatrix.filter(function(row) {
+							return row[1].qText == propSet['dimVal'];  
+						}) : inputMatrix;	
+						if(filteredData.length == 0) {
+							return;
+						}		
+						currentTrace = createTrace(
+							filteredData,
+							propSet['label'],
+							firstMeasureColumn + !propSet["measureVal"],  // column of data matrix to use
+							propSet['lineColor'],
+							propSet['lineOrBar'],
+							propSet['lineWidth'],
+							propSet['dashed'],
+							propSet['markerWidth'],
+							propSet['markerColor']
+						);
+						data.push(currentTrace)
+					});
 				}
+				var meaVal = 0;
+				// run this for the number of measures input
+				do {
+					// Check if there are two dimensions or 1
+					if (dimGroup) {  
+						// grab the unique values from out "group" column (second dimension)
+						let dim2Vals = inputMatrix.map(function(row) {
+							return row[1].qText;  // groups will always come second to x-axis values: e.g. dim0[x-axis], dim1[groups], measure
+						}).filter(onlyUnique);
+						// for each group check if there are values (should be) and filter the data then compute the trace.
+						dim2Vals.forEach(function(dimValue) {
+							if (customDimension[meaVal].includes(dimValue)) {  
+								// Pass, the group exists, and was already handled 
+							} else {
+								let filteredData = inputMatrix.filter(function(row) {
+									return row[1].qText == dimValue; // if two dimensions then columns are dim0, dim1, meas0 so row[1] is dim2 value
+								});
+								currentTrace = createTrace(
+									filteredData, 
+									dimValue+' '+layout.qHyperCube.qMeasureInfo[meaVal].qFallbackTitle, 
+									2 + meaVal
+								);
+								data.push(currentTrace);
+							}
+						});
+					} else if (layout.listItems.length == 0) {  // so there is only 1 dimension
+						var myTrace = createTrace(inputMatrix, '', 1 + meaVal);  // no custom properties and one dimension so run the data with a single dim.
+						data.push( myTrace );
+					}
+					meaVal++  // increment val
+				} while (meaVal < layout.qHyperCube.qMeasureInfo.length);
+				
+				// once the traces have been created, now make the settings
                 var xRange = [];
                 var yRange = [];
                 var marginLeft = 80;
@@ -188,7 +191,6 @@ define([
                     },
                     showlegend: myProps.showLegend
                 };
-
                 var options = {
                     displayModeBar: false
                 };
